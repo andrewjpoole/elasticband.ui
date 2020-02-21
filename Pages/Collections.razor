@@ -1,0 +1,80 @@
+﻿@page "/fetchdata"
+@inject HttpClient Http
+
+<h1>Weather forecast</h1>
+
+<p>This component demonstrates fetching data from the server.</p>
+
+@if (_collections == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Id</th>
+                <th>Index</th>
+                <th>TimeStamp</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var collection in _collections)
+            {
+                <tr>
+                    <td>@collection.Name</td>
+                    <td>@collection.Id</td>
+                    <td>@collection.Index</td>
+                    <td>@collection.Timestamp</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IElasticBand _elasticBand;
+    private List<CollectionDefinition> _collections;
+
+    public Collections(IElasticBand elasticBand)
+    {
+        _elasticBand = elasticBand;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _collections = await GetCollections();
+    }
+
+    private async Task<List<CollectionDefinition>> GetCollections()
+    {
+        var response = await _elasticBand.Query<CollectionDefinition>("eb_collections", "").ConfigureAwait(false);
+
+        if (response.Ok)
+            return response.Data;
+
+        return null;
+    }
+
+    public class CollectionDefinition
+    {
+        public string Name { get; set; }
+        public string ExampleJsonObjectString { get; set; }
+        public object ExampleJsonObject { get; set; }
+        public string ExampleIdPattern { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string EBDataType => "Collection";
+        public string Index => $"eb_collections_{Name}";
+        public string Id => $"{IdPrefix}{Name}";
+
+        public const string IdPrefix = "CollectionDefinitions|";
+        public static string BuildId(string name) => name.StartsWith(IdPrefix) ? name : $"{IdPrefix}{name}";
+
+        public CollectionDefinition()
+        {
+            Timestamp = DateTime.UtcNow;
+        }
+    }
+}
