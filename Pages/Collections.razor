@@ -1,9 +1,8 @@
-﻿@page "/fetchdata"
-@inject HttpClient Http
+﻿@page "/collections"
+@inject IElasticBand _elasticBand
+@inject NavigationManager _navigationManager;
 
-<h1>Weather forecast</h1>
-
-<p>This component demonstrates fetching data from the server.</p>
+<h1>ElasticBand Collections</h1>
 
 @if (_collections == null)
 {
@@ -11,37 +10,30 @@
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Id</th>
-                <th>Index</th>
-                <th>TimeStamp</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var collection in _collections)
-            {
-                <tr>
-                    <td>@collection.Name</td>
-                    <td>@collection.Id</td>
-                    <td>@collection.Index</td>
-                    <td>@collection.Timestamp</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <div>
+        <MatButton Raised="true" Icon="create" @onclick="CreateNewCollection">Create new collection</MatButton>
+    </div>
+
+    <MatTable Items="@_collections" class="mat-elevation-z5" Striped="true">
+        <MatTableHeader>
+            <th>Name</th>
+            <th>Id</th>
+            <th>Index</th>
+            <th>TimeStamp</th>
+        </MatTableHeader>
+        <MatTableRow>
+            <td>
+                <MatIconButton Icon="open_in_browser" OnClick="@(e => OpenCollection(context.Id))"></MatIconButton>@context.Name
+            </td>
+            <td>@context.Id</td>
+            <td>@context.Index</td>
+            <td>@context.Timestamp</td>
+        </MatTableRow>
+    </MatTable>
 }
 
 @code {
-    private IElasticBand _elasticBand;
     private List<CollectionDefinition> _collections;
-
-    public Collections(IElasticBand elasticBand)
-    {
-        _elasticBand = elasticBand;
-    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -58,23 +50,13 @@ else
         return null;
     }
 
-    public class CollectionDefinition
+    private void CreateNewCollection()
     {
-        public string Name { get; set; }
-        public string ExampleJsonObjectString { get; set; }
-        public object ExampleJsonObject { get; set; }
-        public string ExampleIdPattern { get; set; }
-        public DateTime Timestamp { get; set; }
-        public string EBDataType => "Collection";
-        public string Index => $"eb_collections_{Name}";
-        public string Id => $"{IdPrefix}{Name}";
-
-        public const string IdPrefix = "CollectionDefinitions|";
-        public static string BuildId(string name) => name.StartsWith(IdPrefix) ? name : $"{IdPrefix}{name}";
-
-        public CollectionDefinition()
-        {
-            Timestamp = DateTime.UtcNow;
-        }
+        _navigationManager.NavigateTo(Urls.NewCollection);
     }
+
+    private void OpenCollection(string id)
+    {
+        _navigationManager.NavigateTo(Urls.CollectionWithId(id));
+    }    
 }

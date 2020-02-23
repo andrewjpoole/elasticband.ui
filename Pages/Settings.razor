@@ -1,0 +1,35 @@
+﻿@page "/settings"
+@inject ILocalStorageService _localStorageService
+
+<h1>Settings</h1>
+
+    <label>Elasticearch URL</label>
+    <input @bind-value="@elasticSearchUrl" />
+    <br>
+    <label>Api Key</label>
+    <input @bind-value="@elasticSearchApiKey" />
+    <br>
+    <button class="btn btn-primary" @onclick="SaveSettings">Save</button>
+
+
+@code {
+    public string elasticSearchUrl;
+    public string elasticSearchApiKey;
+
+    protected override async Task OnInitializedAsync()
+    {
+        elasticSearchUrl = await _localStorageService.GetItemAsync<string>("elasticSearchUrl");
+        if (string.IsNullOrEmpty(elasticSearchUrl))
+            elasticSearchUrl = "http://localhost:9200";
+
+        elasticSearchApiKey = await _localStorageService.GetItemAsync<string>("elasticSearchApiKey");
+        if (string.IsNullOrEmpty(elasticSearchApiKey))
+            elasticSearchApiKey = "";
+    }
+
+    private async Task SaveSettings()
+    {
+        await _localStorageService.SetItemAsync("elasticSearchUrl", elasticSearchUrl);
+        await _localStorageService.SetItemAsync("elasticSearchApiKey", elasticSearchApiKey);
+    }
+}

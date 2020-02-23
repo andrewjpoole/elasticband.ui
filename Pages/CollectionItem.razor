@@ -1,0 +1,64 @@
+﻿@page "/collections/{CollectionId}/collection-item/{ItemId}"
+@page "/collections/{CollectionId}/collection-item/new"
+@inject IElasticBand _elasticBand
+@inject NavigationManager _navigationManager;
+
+@if (_isLoading == true)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <h1>@_collectionItem.GetProperty("id")</h1>
+    <p>@_collectionItem.GetProperty("timestamp")</p>
+}
+
+@code {
+
+
+
+
+    [Parameter]
+    public string CollectionId { get; set; }
+    [Parameter]
+    public string ItemId { get; set; }
+
+    private CollectionDefinition _collection;
+
+    private JsonElement _collectionItem;
+    private bool _creatingNewItem = false;
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _collection = await GetCollectionDefinition(CollectionId);
+
+        if (string.IsNullOrEmpty(ItemId))
+            //_collectionItem = CreateNewItem();
+            Console.WriteLine("create new");
+        else
+            _collectionItem = await GetItemById(ItemId);
+
+        _isLoading = false;
+    }
+
+    private async Task<CollectionDefinition> GetCollectionDefinition(string id)
+    {
+        var response = await _elasticBand.GetDocumentByID<CollectionDefinition>(CollectionDefinition.collectionsIndex, id).ConfigureAwait(false);
+
+        if (response.Ok)
+            return response.Data;
+
+        return null;
+    }
+
+    private async Task<JsonElement> GetItemById(string itemId)
+    {
+        var response = await _elasticBand.GetDocumentByID<object>(_collection.Index, itemId).ConfigureAwait(false);
+
+        if (response.Ok)
+            return (JsonElement)response.Data;
+
+        return new JsonElement();
+    }
+}

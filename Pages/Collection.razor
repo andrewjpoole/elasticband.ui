@@ -1,0 +1,230 @@
+﻿@page "/collections/{collectionId}"
+@page "/collections/new"
+@inject IJSRuntime _jsRuntime;
+@inject IElasticBand _elasticBand
+@inject NavigationManager _navigationManager;
+
+@if (_collection == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <h1>@_collection.Name collection</h1>
+
+    <div class="mat-layout-grid" Style="width:100%;">
+        <div class="mat-layout-grid-inner">
+            <div class="mat-layout-grid-cell mat-layout-grid-cell-span-2">
+                @if (_creatingNewCollection)
+                {
+                    <p><MatTextField @bind-Value="_collection.Name" Label="Name" Style="width:100%;" Outlined="true"></MatTextField></p>
+                }
+                else
+                {
+                    <p><MatTextField Value="@_collection.Name" Label="Name" ReadOnly="true" Style="width:100%;" Outlined="true"></MatTextField></p>
+                }
+                <p><MatTextField Value="@_collection.Id" Label="Id" ReadOnly="true" Style="width:100%;" Outlined="true"></MatTextField></p>
+                <p><MatTextField Value="@_collection.Index" Label="Elasticsearch Index" ReadOnly="true" Style="width:100%;" Outlined="true"></MatTextField></p>
+                <p><MatTextField Value="@_collection.Timestamp" Label="TimeStamp" ReadOnly="true" Style="width:100%;" Outlined="true"></MatTextField></p>
+                <p><MatTextField @bind-Value="_collection.ExampleIdPattern" Label="Example Id string" Style="width:100%;" Outlined="true"></MatTextField></p>                
+            </div>
+            <div class="mat-layout-grid-cell mat-layout-grid-cell-span-4">
+                <label>Example json Object</label>
+                <div id="editorContainer" style="height: 350px;"></div>
+                @*<p><MatTextField @bind-Value="_collection.ExampleJsonObjectString" Label="Example Json Object" TextArea="true" Style="width: 100%; height: 350px;"></MatTextField></p>*@
+            </div>
+            <div class="mat-layout-grid-cell mat-layout-grid-cell-span-2">
+                <p><MatTextField @bind-Value="_collection.Description" Label="Description" TextArea="true" Outlined="true" Style="width: 100%; height: 150px;"></MatTextField></p>
+                <p><MatButton Raised="true" Icon="save" @onclick="SaveChanges">Save Changes</MatButton></p>
+                <p><MatButton Raised="true" Icon="delete_forever" @onclick="DeleteCollection">Delete</MatButton></p>
+            </div>
+        </div>
+    </div>
+
+    <h1>@_collection.Name items</h1>
+
+    <div>
+        <MatTextField @bind-Value="_itemFilterValue" Label="Filter items" Dense="true" Icon="filter_list" Outlined="true"></MatTextField>
+        <MatButton Raised="true" Icon="refresh" @onclick="RefreshItems">Refresh</MatButton>
+        <MatButton Raised="true" Icon="delete_forever">Delete</MatButton>
+        <MatButton Raised="true" Icon="create" @onclick="CreateNewItem">Create new</MatButton>
+    </div>
+
+    @if (_collectionItems == null)
+    {
+        <p><em>Loading items...</em></p>
+    }
+    else if (_collectionItems.Count == 0)
+    {
+        <p><em>This collection does not have any items yet.</em></p>
+    }
+    else
+    {
+        <MatTable Items="@_collectionItems" class="mat-elevation-z5" Striped="true" AllowSelection="true">
+            <MatTableHeader>
+                <th>Id</th>
+                <th>TimeStamp</th>
+            </MatTableHeader>
+            <MatTableRow>
+                <td>
+                    <MatIconButton Icon="open_in_browser" OnClick="@(e => OpenCollectionItem(context.GetProperty("id").ToString()))"></MatIconButton>
+                    @context.GetProperty("id")
+                </td>
+                <td>@context.GetProperty("timestamp")</td>
+                @foreach (var prop in context.EnumerateObject())
+                {
+                    @if (prop.Name == "id" || prop.Name == "timestamp")
+                        continue;
+                    <td>@prop.Name: @prop.Value</td>
+                }
+            </MatTableRow>
+        </MatTable>
+    }
+}
+
+<MatSnackbar @bind-IsOpen="@_snackbarIsOpen">
+    <MatSnackbarContent>@_snackbarMessage</MatSnackbarContent>
+    <MatSnackbarActions>
+        <MatButton Raised="true" OnClick="@(e => { _snackbarOnOkClick?.Invoke(); _snackbarIsOpen = false; })">@_snackbarOkButtonText</MatButton>
+        @if (_snackbarShowCancelButton)
+        {
+            <MatButton Raised="true" OnClick="@(e => { _snackbarIsOpen = false; })">@_snackbarCancelButtonText</MatButton>
+        }
+    </MatSnackbarActions>
+</MatSnackbar>
+
+@code {
+
+    private bool _snackbarIsOpen { get; set; }
+    private bool _snackbarShowCancelButton { get; set; }
+    private string _snackbarMessage { get; set; }
+    private string _snackbarOkButtonText { get; set; } = "Ok";
+    private string _snackbarCancelButtonText { get; set; } = "Cancel";
+    private Action _snackbarOnOkClick { get; set; }
+
+    [Parameter]
+    public string collectionId { get; set; }
+    private CollectionDefinition _collection;
+    private List<JsonElement> _collectionItems;
+    private string _itemFilterValue = "";
+    private bool _creatingNewCollection = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(collectionId))
+        {
+            _collection = CreateNewCollection();
+        }
+        else
+        {
+            _collection = await GetCollectionDefinition(collectionId);
+
+            if (string.IsNullOrEmpty(_collection.ExampleJsonObjectString))
+                _collection.ExampleJsonObjectString = "{}";
+
+            var exampleObject = JsonSerializer.Deserialize<object>(_collection.ExampleJsonObjectString);
+            _collection.ExampleJsonObject = exampleObject;
+            _collection.ExampleJsonObjectString = JsonSerializer.Serialize(exampleObject, new JsonSerializerOptions { WriteIndented = true });
+                        
+            await _jsRuntime.InvokeVoidAsync("monacoEditorFunctions.setContents", "json", _collection.ExampleJsonObjectString);
+
+            _collectionItems = await GetCollectionItems(_collection.Index, _itemFilterValue);
+        }
+    }
+
+    private async Task<CollectionDefinition> GetCollectionDefinition(string id)
+    {
+        var response = await _elasticBand.GetDocumentByID<CollectionDefinition>(CollectionDefinition.collectionsIndex, id).ConfigureAwait(false);
+
+        if (response.Ok)
+            return response.Data;
+
+        return null;
+    }
+
+    private CollectionDefinition CreateNewCollection()
+    {
+        _creatingNewCollection = true;
+        return new CollectionDefinition
+        {
+            Timestamp = DateTime.UtcNow,
+            Name = "new"
+        };
+    }
+
+    private async Task<List<JsonElement>> GetCollectionItems(string index, string query)
+    {
+        var response = await _elasticBand.Query<object>(index, query).ConfigureAwait(false);
+
+        if (response.Ok)
+        {
+            var items = response.Data.Cast<JsonElement>().ToList();
+            return items;
+        }
+
+        return new List<JsonElement>();
+    }
+
+    private async Task RefreshItems()
+    {
+        _collectionItems = await GetCollectionItems(_collection.Index, _itemFilterValue);
+    }
+
+    private async Task SaveChanges()
+    {
+        var exampleJsonObjectString = await _jsRuntime.InvokeAsync<string>("monacoEditorFunctions.getContents");
+        _collection.ExampleJsonObjectString = exampleJsonObjectString;
+        _collection.ExampleJsonObject = JsonSerializer.Deserialize<object>(exampleJsonObjectString, new JsonSerializerOptions { WriteIndented = true });
+
+        var response = await _elasticBand.Index<object>(CollectionDefinition.collectionsIndex, _collection, _collection.Id).ConfigureAwait(false);
+
+        if (response.Ok)
+        {
+            showSnackbar("changes saved", false);
+
+            if (_creatingNewCollection)
+            {
+                _navigationManager.NavigateTo(Urls.CollectionWithId(_collection.Id), true);
+            }
+        }
+    }
+
+    private async Task DeleteCollection()
+    {
+        var response = await _elasticBand.Delete(CollectionDefinition.collectionsIndex, _collection.Id).ConfigureAwait(false);
+
+        if (response.Ok)
+        {
+            showSnackbar("collection deleted", false);
+            _navigationManager.NavigateTo(Urls.Collections, true);
+        }
+    }
+
+    private void OpenCollectionItem(string id)
+    {
+        _navigationManager.NavigateTo(Urls.CollectionItemWithId(_collection.Id, id));
+    }
+
+    private void CreateNewItem()
+    {
+        _navigationManager.NavigateTo(Urls.CollectionItemNew(_collection.Id));
+    }
+
+    private void showSnackbar(string message, bool showCancelButton = true, string okButtonText = "", string cancelButtonText = "", Action onSnackbarOk = null)
+    {
+        _snackbarMessage = message;
+        _snackbarIsOpen = true;
+        _snackbarOnOkClick = onSnackbarOk;
+        _snackbarShowCancelButton = showCancelButton;
+        if (!string.IsNullOrEmpty(okButtonText))
+            _snackbarOkButtonText = okButtonText;
+        if (!string.IsNullOrEmpty(cancelButtonText))
+            _snackbarOkButtonText = cancelButtonText;
+        this.StateHasChanged();
+    }
+
+    private void handleSnackbarOkClick()
+    {
+
+    }
+}
