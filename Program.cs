@@ -36,8 +36,11 @@ namespace elasticband.ui
 
             var elasticSearchApiKey = await localStorageService.GetItemAsync<string>("elasticSearchApiKey");
 
-            elasticBand.SetElasticsearchUrl(elasticSearchUrl);
-            elasticBand.SetElasticsearchAuthentication(elasticSearchApiKey);
+            if(!string.IsNullOrEmpty(elasticSearchUrl))
+                elasticBand.SetElasticsearchUrl(elasticSearchUrl);
+            
+            if(!string.IsNullOrEmpty(elasticSearchApiKey))
+                elasticBand.SetElasticsearchAuthentication(elasticSearchApiKey);
 
             var jsRuntime = host.Services.GetService<IJSRuntime>();
             await jsRuntime.InvokeVoidAsync("monacoEditorFunctions.load"); // do this once rather than every page

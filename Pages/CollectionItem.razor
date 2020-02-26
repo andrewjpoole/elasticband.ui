@@ -1,6 +1,8 @@
 ﻿@page "/collections/{CollectionId}/collection-item/{ItemId}"
 @page "/collections/{CollectionId}/collection-item/new"
-@inject IElasticBand _elasticBand
+@implements IDisposable;
+@inject IJSRuntime _jsRuntime;
+@inject IElasticBand _elasticBand;
 @inject NavigationManager _navigationManager;
 
 @if (_isLoading == true)
@@ -9,14 +11,28 @@
 }
 else
 {
-    <h1>@_collectionItem.GetProperty("id")</h1>
-    <p>@_collectionItem.GetProperty("timestamp")</p>
+    <div style="text-align: right; float:right; margin: 2px;">
+        <MatButton Raised="true" Icon="keyboard_backspace" @onclick="NavigateBackToCollection">Back to collection</MatButton>
+        <MatButton Raised="true" Icon="save" @onclick="SaveChanges">Save Changes</MatButton>
+        <MatButton Raised="true" Icon="delete_forever" @onclick="DeleteItem">Delete Item</MatButton>
+    </div>
+
+    @if (_creatingNewItem)
+    {
+        <h1>Creating new Item</h1>
+        <p><MatTextField Value="@ItemId" Label="Id" Style="width:100%;" Outlined="true"></MatTextField></p>
+    }
+    else
+    {
+        <h1>@_collectionItem.GetProperty("id")</h1>
+        @_collectionItem.GetProperty("timestamp")
+    }
 }
+<p>
+    <div id="itemEditorContainer" style="width:1200px; height: 500px; padding-top: 20px;"></div>
+</p>
 
 @code {
-
-
-
 
     [Parameter]
     public string CollectionId { get; set; }
@@ -34,10 +50,20 @@ else
         _collection = await GetCollectionDefinition(CollectionId);
 
         if (string.IsNullOrEmpty(ItemId))
-            //_collectionItem = CreateNewItem();
-            Console.WriteLine("create new");
+        {
+            _creatingNewItem = true;
+            ItemId = _collection.ExampleIdPattern;
+            _collectionItem = await CreateNewItem();
+        }
         else
+        {
+            //Console.WriteLine($"Fetching collectionitem with id:{CollectionId}...");
             _collectionItem = await GetItemById(ItemId);
+        }
+
+        StateHasChanged();
+        //Console.WriteLine("Calling editor setContents");
+        await _jsRuntime.InvokeVoidAsync("monacoEditorFunctions.setContents", "itemEditorContainer", "json", _collectionItem.ToString());
 
         _isLoading = false;
     }
@@ -60,5 +86,61 @@ else
             return (JsonElement)response.Data;
 
         return new JsonElement();
+    }
+
+    private async Task<JsonElement> CreateNewItem()
+    {
+        var newItem = (JsonElement)JsonSerializer.Deserialize<object>(_collection.ExampleJsonObjectString);
+        Console.WriteLine($"{newItem}");
+        return newItem;
+    }
+
+    private async Task SaveChanges()
+    {
+        if (_creatingNewItem)
+        {
+            ItemId = ItemId.Replace("[NewGuid]", Guid.NewGuid().ToString());
+        }
+
+        var exampleJsonObjectString = await _jsRuntime.InvokeAsync<string>("monacoEditorFunctions.getContents", "itemEditorContainer");
+        _collectionItem = (JsonElement)JsonSerializer.Deserialize<object>(exampleJsonObjectString, new JsonSerializerOptions { WriteIndented = true });
+
+        // Add additional properties
+        _collectionItem = _collectionItem
+            .AddProperty("timestamp", DateTime.UtcNow)
+            .AddProperty("id", ItemId);
+
+        var response = await _elasticBand.Index<object>(_collection.Index, _collectionItem, ItemId).ConfigureAwait(false);
+        Console.WriteLine(response.StatusCode);
+        if (response.Ok)
+        {
+            if (_creatingNewItem)
+            {
+                _collectionItem = await GetItemById(ItemId);
+                StateHasChanged();
+                await _jsRuntime.InvokeVoidAsync("monacoEditorFunctions.setContents", "itemEditorContainer", "json", _collectionItem.ToString());
+                _creatingNewItem = false;
+            }
+        }
+    }
+
+    private async Task DeleteItem()
+    {
+        var response = await _elasticBand.Delete(_collection.Index, ItemId).ConfigureAwait(false);
+
+        if (response.Ok)
+        {
+            _navigationManager.NavigateTo(Urls.CollectionWithId(_collection.Id));
+        }
+    }
+
+    private void NavigateBackToCollection()
+    {
+        _navigationManager.NavigateTo(Urls.CollectionWithId(_collection.Id));
+    }
+
+    public void Dispose()
+    {
+        _jsRuntime.InvokeAsync<string>("monacoEditorFunctions.disposeEditor", "itemEditorContainer");
     }
 }

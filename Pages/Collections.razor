@@ -10,9 +10,11 @@
 }
 else
 {
-    <div>
-        <MatButton Raised="true" Icon="create" @onclick="CreateNewCollection">Create new collection</MatButton>
-    </div>
+<div>
+    <MatTextField @bind-Value="_itemFilterValue" Label="Filter items" Dense="true" Icon="filter_list" Outlined="true"></MatTextField>
+    <MatButton Raised="true" Icon="refresh" @onclick="RefreshItems">Refresh</MatButton>
+    <MatButton Raised="true" Icon="create" @onclick="CreateNewCollection" Style="float:right;">Create new collection</MatButton>
+</div>
 
     <MatTable Items="@_collections" class="mat-elevation-z5" Striped="true">
         <MatTableHeader>
@@ -33,6 +35,7 @@ else
 }
 
 @code {
+    private string _itemFilterValue = "";
     private List<CollectionDefinition> _collections;
 
     protected override async Task OnInitializedAsync()
@@ -40,14 +43,19 @@ else
         _collections = await GetCollections();
     }
 
-    private async Task<List<CollectionDefinition>> GetCollections()
+    private async Task<List<CollectionDefinition>> GetCollections(string queryText = "")
     {
-        var response = await _elasticBand.Query<CollectionDefinition>("eb_collections", "").ConfigureAwait(false);
+        var response = await _elasticBand.Query<CollectionDefinition>("eb_collections", queryText).ConfigureAwait(false);
 
         if (response.Ok)
             return response.Data;
 
         return null;
+    }
+
+    private async Task RefreshItems()
+    {
+        _collections = await GetCollections(_itemFilterValue);
     }
 
     private void CreateNewCollection()
@@ -58,5 +66,5 @@ else
     private void OpenCollection(string id)
     {
         _navigationManager.NavigateTo(Urls.CollectionWithId(id));
-    }    
+    }
 }
