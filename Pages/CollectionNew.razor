@@ -1,0 +1,76 @@
+﻿@page "/collections/new"
+@implements IDisposable
+@inject IJSRuntime _jsRuntime;
+@inject IElasticBand _elasticBand;
+@inject NavigationManager _navigationManager;
+
+<div class="container">
+    <div class="row">
+        <h1>@_collection.Name collection</h1>
+    </div>
+    <div class="row">
+        <div class="col">
+            <p><MatTextField @bind-Value="_collection.Name" Label="Name" Style="width:100%;" Outlined="true"></MatTextField></p>
+            <p><MatTextField Value="@_collection.Id" Label="Id" ReadOnly="true" Style="width:100%;" Outlined="true"></MatTextField></p>
+            <p><MatTextField Value="@_collection.Index" Label="Elasticsearch Index" ReadOnly="true" Style="width:100%;" Outlined="true"></MatTextField></p>
+            <p><MatTextField Value="@_collection.Timestamp" Label="TimeStamp" ReadOnly="true" Style="width:100%;" Outlined="true"></MatTextField></p>
+            <p><MatTextField @bind-Value="_collection.ExampleIdPattern" Label="Example Id string" Style="width:100%;" Outlined="true"></MatTextField></p>
+        </div>
+        <div class="col">
+            <label style="font-size: small;">Example json Object</label>
+            <div id="newCollectionsEditorContainer" style="width:450px; height: 320px;"></div>
+        </div>
+        <div class="col">
+            <p><MatTextField @bind-Value="_collection.Description" Label="Description" TextArea="true" Outlined="true" Style="width: 100%; height: 150px;"></MatTextField></p>
+            <p><MatButton Raised="true" Icon="save" @onclick="SaveChanges">Save Changes</MatButton></p>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string collectionId { get; set; }
+    private CollectionDefinition _collection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _collection = CreateNewCollection();
+
+        StateHasChanged();
+
+        await Task.Delay(500);
+
+        Console.WriteLine($"loading editor {_collection.ExampleJsonObjectString}");
+        await _jsRuntime.InvokeVoidAsync("monacoEditorFunctions.setContents", "newCollectionsEditorContainer", "json", _collection.ExampleJsonObjectString);
+    }
+
+    private CollectionDefinition CreateNewCollection()
+    {
+        return new CollectionDefinition
+        {
+            Timestamp = DateTime.UtcNow,
+            Name = "new",
+            ExampleJsonObjectString = "{}",
+            ExampleJsonObject = JsonSerializer.Deserialize<object>("{}")
+        };
+    }
+
+    private async Task SaveChanges()
+    {
+        var exampleJsonObjectString = await _jsRuntime.InvokeAsync<string>("monacoEditorFunctions.getContents", "newCollectionsEditorContainer");
+        _collection.ExampleJsonObjectString = exampleJsonObjectString;
+        _collection.ExampleJsonObject = JsonSerializer.Deserialize<object>(exampleJsonObjectString, new JsonSerializerOptions { WriteIndented = true });
+
+        var response = await _elasticBand.Index<object>(CollectionDefinition.collectionsIndex, _collection, _collection.Id).ConfigureAwait(false);
+
+        if (response.Ok)
+        {
+            _navigationManager.NavigateTo(Urls.CollectionWithId(_collection.Id));
+        }
+    }
+
+    public void Dispose()
+    {
+        _jsRuntime.InvokeAsync<string>("monacoEditorFunctions.disposeEditor", "newCollectionsEditorContainer");
+    }
+}

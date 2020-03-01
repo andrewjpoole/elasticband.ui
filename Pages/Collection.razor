@@ -1,5 +1,4 @@
 ﻿@page "/collections/{collectionId}"
-@page "/collections/new"
 @implements IDisposable
 @inject IJSRuntime _jsRuntime;
 @inject IElasticBand _elasticBand;
@@ -69,8 +68,7 @@ else
                         <th>@_itemPropertyNames[0]</th>
                         <th>@_itemPropertyNames[1]</th>
                         <th>@_itemPropertyNames[2]</th>
-                        <th>@_itemPropertyNames[3]</th>                       
-                        <th>@_itemPropertyNames[4]</th>                       
+                        <th>@_itemPropertyNames[3]</th>                      
                     </MatTableHeader>
                     <MatTableRow>
                         <td>
@@ -81,7 +79,7 @@ else
                         @{var i = 0;}
                         @foreach (var prop in context.EnumerateObject())
                          {
-                            @if (prop.Name == "id" || prop.Name == "timestamp" || i > 4)
+                            @if (prop.Name == "id" || prop.Name == "timestamp" || i > 3)
                                 continue;
                             _itemPropertyNames[i] = prop.Name;
                             <td>@prop.Value</td>
@@ -141,10 +139,12 @@ else
             _collection.ExampleJsonObject = exampleObject;
             _collection.ExampleJsonObjectString = JsonSerializer.Serialize(exampleObject, new JsonSerializerOptions { WriteIndented = true });
 
+            Console.WriteLine($"GetCollectionItems {_collection.Index}");
             _collectionItems = await GetCollectionItems(_collection.Index, _itemFilterValue);
-
+            Console.WriteLine($"GetCollectionItems returned {_collectionItems.Count}");
             StateHasChanged();
 
+            Console.WriteLine("calling monaco editor setContents, collection.razor");
             await _jsRuntime.InvokeVoidAsync("monacoEditorFunctions.setContents", "collectionsEditorContainer", "json", _collection.ExampleJsonObjectString);
         }
     }
