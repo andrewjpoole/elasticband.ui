@@ -15,15 +15,8 @@ else
             <h1>@_collection.Name collection</h1>
         </div>
         <div class="row">
-            <div class="col">
-                @if (_creatingNewCollection)
-                {
-                    <p><MatTextField @bind-Value="_collection.Name" Label="Name" Style="width:100%;" Outlined="true"></MatTextField></p>
-                }
-                else
-                {
-                    <p><MatTextField Value="@_collection.Name" Label="Name" ReadOnly="true" Style="width:100%;" Outlined="true"></MatTextField></p>
-                }
+            <div class="col">                
+                <p><MatTextField Value="@_collection.Name" Label="Name" ReadOnly="true" Style="width:100%;" Outlined="true"></MatTextField></p>
                 <p><MatTextField Value="@_collection.Id" Label="Id" ReadOnly="true" Style="width:100%;" Outlined="true"></MatTextField></p>
                 <p><MatTextField Value="@_collection.Index" Label="Elasticsearch Index" ReadOnly="true" Style="width:100%;" Outlined="true"></MatTextField></p>
                 <p><MatTextField Value="@_collection.Timestamp" Label="TimeStamp" ReadOnly="true" Style="width:100%;" Outlined="true"></MatTextField></p>
@@ -118,35 +111,23 @@ else
     private CollectionDefinition _collection;
     private List<JsonElement> _collectionItems;
     private string _itemFilterValue = "";
-    private bool _creatingNewCollection = false;
-
     private string[] _itemPropertyNames = new string[] { "prop3", "prop4", "prop5", "prop6" };
 
     protected override async Task OnInitializedAsync()
-    {
-        if (string.IsNullOrEmpty(collectionId))
-        {
-            _collection = CreateNewCollection();
-        }
-        else
-        {
-            _collection = await GetCollectionDefinition(collectionId);
+    {        
+        _collection = await GetCollectionDefinition(collectionId);
 
-            if (string.IsNullOrEmpty(_collection.ExampleJsonObjectString))
-                _collection.ExampleJsonObjectString = "{}";
+        if (string.IsNullOrEmpty(_collection.ExampleJsonObjectString))
+            _collection.ExampleJsonObjectString = "{}";
 
-            var exampleObject = JsonSerializer.Deserialize<object>(_collection.ExampleJsonObjectString);
-            _collection.ExampleJsonObject = exampleObject;
-            _collection.ExampleJsonObjectString = JsonSerializer.Serialize(exampleObject, new JsonSerializerOptions { WriteIndented = true });
+        var exampleObject = JsonSerializer.Deserialize<object>(_collection.ExampleJsonObjectString);
+        _collection.ExampleJsonObject = exampleObject;
+        _collection.ExampleJsonObjectString = JsonSerializer.Serialize(exampleObject, new JsonSerializerOptions { WriteIndented = true });
 
-            Console.WriteLine($"GetCollectionItems {_collection.Index}");
-            _collectionItems = await GetCollectionItems(_collection.Index, _itemFilterValue);
-            Console.WriteLine($"GetCollectionItems returned {_collectionItems.Count}");
-            StateHasChanged();
+        _collectionItems = await GetCollectionItems(_collection.Index, _itemFilterValue);
+        StateHasChanged();
 
-            Console.WriteLine("calling monaco editor setContents, collection.razor");
-            await _jsRuntime.InvokeVoidAsync("monacoEditorFunctions.setContents", "collectionsEditorContainer", "json", _collection.ExampleJsonObjectString);
-        }
+        await _jsRuntime.InvokeVoidAsync("monacoEditorFunctions.setContents", "collectionsEditorContainer", "json", _collection.ExampleJsonObjectString);        
     }
 
     private async Task<CollectionDefinition> GetCollectionDefinition(string id)
@@ -157,16 +138,6 @@ else
             return response.Data;
 
         return null;
-    }
-
-    private CollectionDefinition CreateNewCollection()
-    {
-        _creatingNewCollection = true;
-        return new CollectionDefinition
-        {
-            Timestamp = DateTime.UtcNow,
-            Name = "new"
-        };
     }
 
     private async Task<List<JsonElement>> GetCollectionItems(string index, string query)
@@ -196,14 +167,7 @@ else
         var response = await _elasticBand.Index<object>(CollectionDefinition.collectionsIndex, _collection, _collection.Id).ConfigureAwait(false);
 
         if (response.Ok)
-        {
-            showSnackbar("changes saved", false);
-
-            if (_creatingNewCollection)
-            {
-                _navigationManager.NavigateTo(Urls.CollectionWithId(_collection.Id));
-            }
-        }
+            showSnackbar("changes saved", false);        
     }
 
     private async Task DeleteCollection()
@@ -247,6 +211,5 @@ else
 
     private void handleSnackbarOkClick()
     {
-
     }
 }

@@ -14,10 +14,14 @@
             <p><MatTextField Value="@_collection.Id" Label="Id" ReadOnly="true" Style="width:100%;" Outlined="true"></MatTextField></p>
             <p><MatTextField Value="@_collection.Index" Label="Elasticsearch Index" ReadOnly="true" Style="width:100%;" Outlined="true"></MatTextField></p>
             <p><MatTextField Value="@_collection.Timestamp" Label="TimeStamp" ReadOnly="true" Style="width:100%;" Outlined="true"></MatTextField></p>
-            <p><MatTextField @bind-Value="_collection.ExampleIdPattern" Label="Example Id string" Style="width:100%;" Outlined="true"></MatTextField></p>
+            <p><MatTextField @bind-Value="_collection.ExampleIdPattern" 
+                             Label="Example Id string" 
+                             HelperText="This will be the suggested Id pattern for new items in this collection e.g. Users|[NewGuid] where Users is the name of the collection and [NewGuid] would be replaced with a new Guid when the item is saved." 
+                             Style="width:100%;" 
+                             Outlined="true"></MatTextField></p>
         </div>
-        <div class="col">
-            <label style="font-size: small;">Example json Object</label>
+        <div class="col">            
+            <label style="font-size: small;" title="This will be the pre-populated json value when creating new items in this new collection.">Example json Object</label>
             <div id="newCollectionsEditorContainer" style="width:450px; height: 320px;"></div>
         </div>
         <div class="col">
