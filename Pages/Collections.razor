@@ -11,22 +11,24 @@
 else
 {
 <div>
-    <MatTextField @bind-Value="_itemFilterValue" Label="Filter items" Dense="true" Icon="filter_list" Outlined="true"></MatTextField>
+    <MatTextField @bind-Value="_itemFilterValue" Label="Filter items" Dense="true" Icon="filter_list" Outlined="true" Type="search" HideClearButton="false"></MatTextField>
     <MatButton Raised="true" Icon="refresh" @onclick="RefreshItems">Refresh</MatButton>
     <MatButton Raised="true" Icon="create" @onclick="CreateNewCollection" Style="float:right;">Create new collection</MatButton>
 </div>
 
     <MatTable Items="@_collections" class="mat-elevation-z5" Striped="true">
         <MatTableHeader>
+            <th>Open</th>
             <th>Name</th>
-            <th>Id</th>
+            <th>Collection Id</th>
             <th>Index</th>
-            <th>TimeStamp</th>
+            <th>Timestamp</th>
         </MatTableHeader>
         <MatTableRow>
             <td>
-                <MatIconButton Icon="open_in_browser" OnClick="@(e => OpenCollection(context.Id))"></MatIconButton>@context.Name
+                <MatIconButton Icon="open_in_browser" OnClick="@(e => OpenCollection(context.Id))"></MatIconButton>
             </td>
+            <td>@context.Name</td>
             <td>@context.Id</td>
             <td>@context.Index</td>
             <td>@context.Timestamp</td>

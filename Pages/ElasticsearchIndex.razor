@@ -1,0 +1,77 @@
+﻿@page "/elasticsearch-indicies/{index}"
+@inject IElasticBand _elasticBand
+@inject IElasticQueryBuilder _queryBuilder
+@inject NavigationManager _navigationManager;
+
+<h1> Elasticsearch Index @Index</h1>
+
+@if (_items == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div>
+        <MatTextField @bind-Value="_itemFilterValue" Label="Filter items" Dense="true" Outlined="true" Type="search" HideClearButton="false"></MatTextField>
+        <MatButton Raised="true" Icon="refresh" @onclick="Refresh">Refresh</MatButton>
+    </div>
+
+    <MatTable Items="@_items" class="mat-elevation-z5" Striped="true">
+        <MatTableHeader>
+            <th>Open</th>
+            <th>Id</th>
+            <th>Type</th>
+            <th>Source</th>
+        </MatTableHeader>
+        <MatTableRow>
+            <td>
+                <MatIconButton Icon="open_in_browser" OnClick="@(e => OpenItem(context.GetProperty("_id").ToString()))"></MatIconButton>
+            </td>
+            <td>@context.GetProperty("_id").ToString()</td>
+            <td>@context.GetProperty("_type").ToString()</td>
+            <td>@context.GetProperty("_source").ToString()</td>
+        </MatTableRow>
+    </MatTable>
+}
+
+@code {
+    [Parameter]
+    public string Index { get; set; }
+    private string _itemFilterValue = "";
+    private List<JsonElement> _items;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _items = await GetIndexItems(Index, string.Empty);
+    }
+
+    private async Task<List<JsonElement>> GetIndexItems(string index, string searchTerms)
+    {
+        var client = _elasticBand.GetClient();
+        var requestString = $"{Index}/_search";
+        var query = _queryBuilder.Build(searchTerms, 500);
+        var content = new StringContent(query, System.Text.Encoding.UTF8, "application/json");
+        var response = await client.PostAsync(requestString, content);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var jsonString = await response.Content.ReadAsStringAsync();
+            var elasticResponse = JsonSerializer.Deserialize<JsonElement>(jsonString);
+            var hitsJson = elasticResponse.GetProperty("hits").GetProperty("hits").ToString();
+            var items = JsonSerializer.Deserialize<List<JsonElement>>(hitsJson);
+            return items;
+        }
+
+        return new List<JsonElement>();
+    }
+
+    private async Task Refresh()
+    {
+        _items = await GetIndexItems(Index, _itemFilterValue);
+    }
+
+    private void OpenItem(string id)
+    {
+        _navigationManager.NavigateTo(Urls.IndexItem(Index, id));
+    }
+}

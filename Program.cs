@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
 using Blazored.LocalStorage;
 using Microsoft.JSInterop;
+using elasticband.ui.Services;
 
 namespace elasticband.ui
 {
@@ -22,6 +23,7 @@ namespace elasticband.ui
 
             builder.Services.AddElasticBand();
             builder.Services.AddBlazoredLocalStorage();
+            builder.Services.AddSingleton<IClipboardService, ClipboardService>();
 
             builder.RootComponents.Add<App>("app");
             

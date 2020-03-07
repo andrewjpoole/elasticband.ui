@@ -16,16 +16,8 @@ else
         <MatButton Raised="true" Icon="delete_forever" @onclick="DeleteItem">Delete Item</MatButton>
     </div>
 
-    @if (_creatingNewItem)
-    {
-        <h1>Creating new Item</h1>
-        <p><MatTextField Value="@ItemId" Label="Id" Style="width:100%;" Outlined="true"></MatTextField></p>
-    }
-    else
-    {
-        <h1>@_collectionItem.GetProperty("id")</h1>
-        @_collectionItem.GetProperty("timestamp")
-    }
+    <h1>@_collectionItem.GetProperty("id")</h1>
+    @_collectionItem.GetProperty("timestamp")
 }
 <p>
     <div id="itemEditorContainer" style="width:1200px; height: 500px; padding-top: 20px;"></div>
@@ -41,24 +33,14 @@ else
     private CollectionDefinition _collection;
 
     private JsonElement _collectionItem;
-    private bool _creatingNewItem = false;
     private bool _isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
         _collection = await GetCollectionDefinition(CollectionId);
 
-        if (string.IsNullOrEmpty(ItemId))
-        {
-            _creatingNewItem = true;
-            ItemId = _collection.ExampleIdPattern;
-            _collectionItem = await CreateNewItem();
-        }
-        else
-        {
-            //Console.WriteLine($"Fetching collectionitem with id:{CollectionId}...");
-            _collectionItem = await GetItemById(ItemId);
-        }
+        //Console.WriteLine($"Fetching collectionitem with id:{CollectionId}...");
+        _collectionItem = await GetItemById(ItemId);
 
         StateHasChanged();
         //Console.WriteLine("Calling editor setContents");
@@ -87,40 +69,21 @@ else
         return new JsonElement();
     }
 
-    private async Task<JsonElement> CreateNewItem()
-    {
-        var newItem = (JsonElement)JsonSerializer.Deserialize<object>(_collection.ExampleJsonObjectString);
-        Console.WriteLine($"{newItem}");
-        return newItem;
-    }
-
     private async Task SaveChanges()
     {
-        if (_creatingNewItem)
-        {
-            ItemId = ItemId.Replace("[NewGuid]", Guid.NewGuid().ToString());
-        }
-
         var exampleJsonObjectString = await _jsRuntime.InvokeAsync<string>("monacoEditorFunctions.getContents", "itemEditorContainer");
         _collectionItem = (JsonElement)JsonSerializer.Deserialize<object>(exampleJsonObjectString, new JsonSerializerOptions { WriteIndented = true });
-
-        // Add additional properties
+        
         _collectionItem = _collectionItem
-            .AddProperty("timestamp", DateTime.UtcNow)
-            .AddProperty("id", ItemId);
+            .RemoveProperty("timestamp")
+            .AddProperty("timestamp", DateTime.UtcNow);
 
         var response = await _elasticBand.Index<object>(_collection.Index, _collectionItem, ItemId).ConfigureAwait(false);
-        Console.WriteLine(response.StatusCode);
+
         if (response.Ok)
-        {
-            if (_creatingNewItem)
-            {
-                _collectionItem = await GetItemById(ItemId);
-                StateHasChanged();
-                await _jsRuntime.InvokeVoidAsync("monacoEditorFunctions.setContents", "itemEditorContainer", "json", _collectionItem.ToString());
-                _creatingNewItem = false;
-            }
-        }
+            Console.WriteLine($"Saved response: {response.Result}");
+        else
+            Console.WriteLine($"Not saved response: {response.Result}");
     }
 
     private async Task DeleteItem()

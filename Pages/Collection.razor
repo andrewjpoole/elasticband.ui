@@ -10,7 +10,7 @@
 }
 else
 {
-    <div class="container">
+    <div class="container-fluid">
         <div class="row">
             <h1>@_collection.Name collection</h1>
         </div>
@@ -29,7 +29,7 @@ else
             <div class="col">
                 <p><MatTextField @bind-Value="_collection.Description" Label="Description" TextArea="true" Outlined="true" Style="width: 100%; height: 150px;"></MatTextField></p>
                 <p><MatButton Raised="true" Icon="save" @onclick="SaveChanges">Save Changes</MatButton></p>
-                <p><MatButton Raised="true" Icon="delete_forever" @onclick="DeleteCollection">Delete</MatButton></p>
+                <p><MatButton Raised="true" Icon="delete_forever" @onclick="DeleteCollection">Delete Collection</MatButton></p>
             </div>
         </div>
         <div class="row">
@@ -37,9 +37,9 @@ else
         </div>
         <div class="row">
             <div>
-                <MatTextField @bind-Value="_itemFilterValue" Label="Filter items" Dense="true" Icon="filter_list" Outlined="true"></MatTextField>
+                <MatTextField @bind-Value="_itemFilterValue" Label="Filter items" Dense="true" Icon="filter_list" Outlined="true" Type="search" HideClearButton="false"></MatTextField>
                 <MatButton Raised="true" Icon="refresh" @onclick="RefreshItems">Refresh</MatButton>
-                <MatButton Raised="true" Icon="delete_forever">Delete</MatButton>
+                <MatButton Raised="true" Icon="delete_forever">Delete Item</MatButton>
                 <MatButton Raised="true" Icon="create" @onclick="CreateNewItem">Create new</MatButton>
             </div>
         </div>
@@ -54,8 +54,9 @@ else
             }
             else
             {
-                <MatTable Items="@_collectionItems" class="mat-elevation-z5" Striped="true" AllowSelection="true">
+                <MatTable Items="@_collectionItems" class="mat-elevation-z5" Striped="true">
                     <MatTableHeader>
+                        <th>Open</th>
                         <th>Id</th>
                         <th>TimeStamp</th>
                         <th>@_itemPropertyNames[0]</th>
@@ -65,9 +66,9 @@ else
                     </MatTableHeader>
                     <MatTableRow>
                         <td>
-                            <MatIconButton Icon="open_in_browser" OnClick="@(e => OpenCollectionItem(context.GetProperty("id").ToString()))"></MatIconButton>
-                            @context.GetProperty("id")
+                            <MatIconButton Icon="open_in_browser" OnClick="@(e => OpenCollectionItem(context.GetProperty("id").ToString()))"></MatIconButton>                            
                         </td>
+                        <td>@context.GetProperty("id")</td>
                         <td>@context.GetProperty("timestamp")</td>
                         @{var i = 0;}
                         @foreach (var prop in context.EnumerateObject())

@@ -1,0 +1,75 @@
+﻿@page "/elasticsearch-indicies"
+@inject IElasticBand _elasticBand
+@inject NavigationManager _navigationManager;
+
+<h1>Elasticsearch Indicies</h1>
+
+@if (_indicies == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div>
+        <MatTextField @bind-Value="_itemFilterValue" Label="Filter items" Dense="true" Icon="filter_list" Outlined="true" Type="search" HideClearButton="false"></MatTextField>
+        <MatButton Raised="true" Icon="refresh" @onclick="Refresh">Refresh</MatButton>
+    </div>
+
+    <MatTable Items="@_indicies" class="mat-elevation-z5" Striped="true">
+        <MatTableHeader>
+            <th>Open</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Health</th>
+            <th>Document count</th>
+            <th>Deleted count</th>
+            <th>Size</th>
+        </MatTableHeader>
+        <MatTableRow>
+            <td>
+                <MatIconButton Icon="open_in_browser" OnClick="@(e => OpenIndex(context.GetProperty("index").ToString()))"></MatIconButton>
+            </td>
+            <td>@context.GetProperty("index").ToString()</td>
+            <td>@context.GetProperty("status").ToString()</td>
+            <td>@context.GetProperty("health").ToString()</td>
+            <td>@context.GetProperty("docs.count").ToString()</td>
+            <td>@context.GetProperty("docs.deleted").ToString()</td>
+            <td>@context.GetProperty("store.size").ToString()</td>
+        </MatTableRow>
+    </MatTable>
+}
+
+@code {
+    private string _itemFilterValue = "";
+    private List<JsonElement> _indicies;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _indicies = await GetIndicies();
+    }
+
+    private async Task<List<JsonElement>> GetIndicies(string queryText = "")
+    {
+        var response = await _elasticBand.GetClient().GetAsync($"/_cat/indices/{queryText}?format=JSON");
+
+        if (response.IsSuccessStatusCode)
+        {
+            var jsonString = await response.Content.ReadAsStringAsync();
+            var indicies = JsonSerializer.Deserialize<List<JsonElement>>(jsonString);
+            var nonSystemIndicies = indicies.Where(i => i.GetProperty("index").ToString().StartsWith(".") == false).ToList();
+            return nonSystemIndicies;
+        }
+
+        return new List<JsonElement>();
+    }
+
+    private async Task Refresh()
+    {
+        _indicies = await GetIndicies(_itemFilterValue);
+    }
+
+    private void OpenIndex(string index)
+    {
+        _navigationManager.NavigateTo(Urls.Index(index));
+    }
+}
