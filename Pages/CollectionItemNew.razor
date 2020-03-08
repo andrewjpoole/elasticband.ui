@@ -1,6 +1,7 @@
 ﻿@page "/collections/{CollectionId}/collection-item/new"
 @implements IDisposable;
 @inject IJSRuntime _jsRuntime;
+@inject IMatToaster _toaster;
 @inject IElasticBand _elasticBand;
 @inject NavigationManager _navigationManager;
 
@@ -37,14 +38,10 @@ else
     protected override async Task OnInitializedAsync()
     {
         _collection = await GetCollectionDefinition(CollectionId);
-
         ItemId = _collection.ExampleIdPattern;
         _collectionItem = await CreateNewItem();
-
         StateHasChanged();
-        //Console.WriteLine("Calling editor setContents");
         await _jsRuntime.InvokeVoidAsync("monacoEditorFunctions.setContents", "newItemEditorContainer", "json", _collectionItem.ToString());
-
         _isLoading = false;
     }
 
@@ -71,7 +68,6 @@ else
     private async Task<JsonElement> CreateNewItem()
     {
         var newItem = (JsonElement)JsonSerializer.Deserialize<object>(_collection.ExampleJsonObjectString);
-        Console.WriteLine($"{newItem}");
         return newItem;
     }
 
@@ -88,12 +84,19 @@ else
 
         var response = await _elasticBand.Index<object>(_collection.Index, _collectionItem, ItemId).ConfigureAwait(false);
         Console.WriteLine(response.StatusCode);
+       
         if (response.Ok)
         {
+            _toaster.Add("Changes saved", MatToastType.Success);
             _collectionItem = await GetItemById(ItemId);
             _navigationManager.NavigateTo(Urls.CollectionItemWithId(_collection.Id, ItemId));
         }
-    }    
+        else
+        {
+            _toaster.Add("Changes not saved", MatToastType.Warning);
+            Console.WriteLine($"Changes not saved {response.Result} {response.Warnings} {response.Errors}");
+        }
+    }
 
     private void NavigateBackToCollection()
     {

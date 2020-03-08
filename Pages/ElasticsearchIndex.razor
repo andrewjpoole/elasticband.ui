@@ -21,7 +21,11 @@ else
             <th>Open</th>
             <th>Id</th>
             <th>Type</th>
-            <th>Source</th>
+            <th>@_itemPropertyNames[0]</th>
+            <th>@_itemPropertyNames[1]</th>
+            <th>@_itemPropertyNames[2]</th>
+            <th>@_itemPropertyNames[3]</th>
+            <th>@_itemPropertyNames[4]</th>
         </MatTableHeader>
         <MatTableRow>
             <td>
@@ -29,7 +33,15 @@ else
             </td>
             <td>@context.GetProperty("_id").ToString()</td>
             <td>@context.GetProperty("_type").ToString()</td>
-            <td>@context.GetProperty("_source").ToString()</td>
+            @{var i = 0;}
+            @{var source = context.GetProperty("_source"); }
+            @foreach (var prop in source.EnumerateObject())
+                {
+                @if (i > 4) { continue; }                
+                _itemPropertyNames[i] = prop.Name;
+                <td>@prop.Value</td>
+                    i = i + 1;
+                }
         </MatTableRow>
     </MatTable>
 }
@@ -40,9 +52,12 @@ else
     private string _itemFilterValue = "";
     private List<JsonElement> _items;
 
+    private string[] _itemPropertyNames = new string[] { "prop1", "prop2", "prop3", "prop4", "prop5" };
+
     protected override async Task OnInitializedAsync()
     {
         _items = await GetIndexItems(Index, string.Empty);
+        StateHasChanged();
     }
 
     private async Task<List<JsonElement>> GetIndexItems(string index, string searchTerms)

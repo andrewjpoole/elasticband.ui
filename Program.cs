@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration.Json;
 using Blazored.LocalStorage;
 using Microsoft.JSInterop;
 using elasticband.ui.Services;
+using MatBlazor;
 
 namespace elasticband.ui
 {
@@ -24,6 +25,15 @@ namespace elasticband.ui
             builder.Services.AddElasticBand();
             builder.Services.AddBlazoredLocalStorage();
             builder.Services.AddSingleton<IClipboardService, ClipboardService>();
+            builder.Services.AddMatToaster(config =>
+            {
+                config.Position = MatToastPosition.BottomRight;
+                config.PreventDuplicates = true;
+                config.NewestOnTop = true;
+                config.ShowCloseButton = true;
+                config.MaximumOpacity = 98;
+                config.VisibleStateDuration = 3000;
+            });
 
             builder.RootComponents.Add<App>("app");
             

@@ -1,6 +1,7 @@
 ﻿@page "/collections/{CollectionId}/collection-item/{ItemId}"
 @implements IDisposable;
 @inject IJSRuntime _jsRuntime;
+@inject IMatToaster _toaster;
 @inject IElasticBand _elasticBand;
 @inject NavigationManager _navigationManager;
 
@@ -38,14 +39,9 @@ else
     protected override async Task OnInitializedAsync()
     {
         _collection = await GetCollectionDefinition(CollectionId);
-
-        //Console.WriteLine($"Fetching collectionitem with id:{CollectionId}...");
         _collectionItem = await GetItemById(ItemId);
-
         StateHasChanged();
-        //Console.WriteLine("Calling editor setContents");
         await _jsRuntime.InvokeVoidAsync("monacoEditorFunctions.setContents", "itemEditorContainer", "json", _collectionItem.ToString());
-
         _isLoading = false;
     }
 
@@ -73,7 +69,7 @@ else
     {
         var exampleJsonObjectString = await _jsRuntime.InvokeAsync<string>("monacoEditorFunctions.getContents", "itemEditorContainer");
         _collectionItem = (JsonElement)JsonSerializer.Deserialize<object>(exampleJsonObjectString, new JsonSerializerOptions { WriteIndented = true });
-        
+
         _collectionItem = _collectionItem
             .RemoveProperty("timestamp")
             .AddProperty("timestamp", DateTime.UtcNow);
@@ -81,9 +77,14 @@ else
         var response = await _elasticBand.Index<object>(_collection.Index, _collectionItem, ItemId).ConfigureAwait(false);
 
         if (response.Ok)
-            Console.WriteLine($"Saved response: {response.Result}");
+        {
+            _toaster.Add("Changes saved", MatToastType.Success);
+        }
         else
-            Console.WriteLine($"Not saved response: {response.Result}");
+        {
+            _toaster.Add("Changes not saved", MatToastType.Warning);
+            Console.WriteLine($"Changes not saved {response.Result} {response.Warnings} {response.Errors}");
+        }
     }
 
     private async Task DeleteItem()
@@ -92,7 +93,13 @@ else
 
         if (response.Ok)
         {
+            _toaster.Add("Item deleted", MatToastType.Warning);
             _navigationManager.NavigateTo(Urls.CollectionWithId(_collection.Id));
+        }
+        else
+        {
+            _toaster.Add("Item not deleted", MatToastType.Warning);
+            Console.WriteLine($"Item not deleted {response.Result} {response.Warnings} {response.Errors}");
         }
     }
 

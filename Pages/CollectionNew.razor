@@ -1,6 +1,7 @@
 ﻿@page "/collections/new"
 @implements IDisposable
 @inject IJSRuntime _jsRuntime;
+@inject IMatToaster _toaster;
 @inject IElasticBand _elasticBand;
 @inject NavigationManager _navigationManager;
 
@@ -66,10 +67,16 @@
         _collection.ExampleJsonObject = JsonSerializer.Deserialize<object>(exampleJsonObjectString, new JsonSerializerOptions { WriteIndented = true });
 
         var response = await _elasticBand.Index<object>(CollectionDefinition.collectionsIndex, _collection, _collection.Id).ConfigureAwait(false);
-
+                
         if (response.Ok)
         {
+            _toaster.Add("Changes saved", MatToastType.Success);
             _navigationManager.NavigateTo(Urls.CollectionWithId(_collection.Id));
+        }
+        else
+        {
+            _toaster.Add("Changes not saved", MatToastType.Warning);
+            Console.WriteLine($"Changes not saved {response.Result} {response.Warnings} {response.Errors}");
         }
     }
 

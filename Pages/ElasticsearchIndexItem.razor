@@ -2,6 +2,7 @@
 @implements IDisposable;
 @inject IJSRuntime _jsRuntime;
 @inject IClipboardService _clipboardService;
+@inject IMatToaster _toaster
 @inject IElasticBand _elasticBand;
 @inject NavigationManager _navigationManager;
 
@@ -18,14 +19,12 @@ else
     </div>
 
     <MatTextField @bind-Value="ItemId" Label="Item Id" Outlined="true" Style="width:500px;" title="If you change the Id, a new document will be posted to Elasticsearch"></MatTextField>
-    
+
 }
 <p>
     <div id="indexItemEditorContainer" style="width:1200px; height: 500px; padding-top: 20px;"></div>
 </p>
 <br>
-<MatButton Raised="false" Icon="fingerprint" @onclick="NewGuidToClipboard" title="Generate a new Guid and copy it to the clipboard">New Guid</MatButton>
-<MatButton Raised="false" Icon="date_range" @onclick="TimestampToClipboard" title="Create a timestamp from the current time and copy it to the clipboard">Timestamp</MatButton>
 
 @code {
 
@@ -41,7 +40,6 @@ else
     protected override async Task OnInitializedAsync()
     {
         _item = await GetItemById(ItemId);
-        Console.WriteLine($"item.id: {_item.GetProperty("_id").ToString()}");
 
         StateHasChanged();
 
@@ -80,7 +78,7 @@ else
 
         if (response.IsSuccessStatusCode)
         {
-            // toast?
+            _toaster.Add("Changes saved", MatToastType.Success);
         }
     }
 
@@ -90,6 +88,7 @@ else
 
         if (response.Ok)
         {
+            _toaster.Add("Item deleted", MatToastType.Success);
             _navigationManager.NavigateTo(Urls.Index(Index));
         }
     }
@@ -97,23 +96,7 @@ else
     private void NavigateBackToIndex()
     {
         _navigationManager.NavigateTo(Urls.Index(Index));
-    }
-
-    public void NewGuidToClipboard()
-    {
-        var guid = Guid.NewGuid().ToString();
-        var result = _clipboardService.SetClipboard(guid);
-
-        // TODO toast?
-    }
-
-    public void TimestampToClipboard()
-    {
-        var timestamp = DateTime.UtcNow.ToString("s");
-        var result = _clipboardService.SetClipboard(timestamp);
-
-        // TODO toast?
-    }
+    }   
 
     public void Dispose()
     {

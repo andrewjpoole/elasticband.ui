@@ -1,6 +1,7 @@
 ﻿@page "/collections/{collectionId}"
 @implements IDisposable
 @inject IJSRuntime _jsRuntime;
+@inject IMatToaster _toaster;
 @inject IElasticBand _elasticBand;
 @inject NavigationManager _navigationManager;
 
@@ -87,25 +88,7 @@ else
     </div>
 }
 
-<MatSnackbar @bind-IsOpen="@_snackbarIsOpen">
-    <MatSnackbarContent>@_snackbarMessage</MatSnackbarContent>
-    <MatSnackbarActions>
-        <MatButton Raised="true" OnClick="@(e => { _snackbarOnOkClick?.Invoke(); _snackbarIsOpen = false; })">@_snackbarOkButtonText</MatButton>
-        @if (_snackbarShowCancelButton)
-        {
-            <MatButton Raised="true" OnClick="@(e => { _snackbarIsOpen = false; })">@_snackbarCancelButtonText</MatButton>
-        }
-    </MatSnackbarActions>
-</MatSnackbar>
-
-@code {
-
-    private bool _snackbarIsOpen { get; set; }
-    private bool _snackbarShowCancelButton { get; set; }
-    private string _snackbarMessage { get; set; }
-    private string _snackbarOkButtonText { get; set; } = "Ok";
-    private string _snackbarCancelButtonText { get; set; } = "Cancel";
-    private Action _snackbarOnOkClick { get; set; }
+@code {    
 
     [Parameter]
     public string collectionId { get; set; }
@@ -115,7 +98,7 @@ else
     private string[] _itemPropertyNames = new string[] { "prop3", "prop4", "prop5", "prop6" };
 
     protected override async Task OnInitializedAsync()
-    {        
+    {
         _collection = await GetCollectionDefinition(collectionId);
 
         if (string.IsNullOrEmpty(_collection.ExampleJsonObjectString))
@@ -128,7 +111,7 @@ else
         _collectionItems = await GetCollectionItems(_collection.Index, _itemFilterValue);
         StateHasChanged();
 
-        await _jsRuntime.InvokeVoidAsync("monacoEditorFunctions.setContents", "collectionsEditorContainer", "json", _collection.ExampleJsonObjectString);        
+        await _jsRuntime.InvokeVoidAsync("monacoEditorFunctions.setContents", "collectionsEditorContainer", "json", _collection.ExampleJsonObjectString);
     }
 
     private async Task<CollectionDefinition> GetCollectionDefinition(string id)
@@ -168,7 +151,7 @@ else
         var response = await _elasticBand.Index<object>(CollectionDefinition.collectionsIndex, _collection, _collection.Id).ConfigureAwait(false);
 
         if (response.Ok)
-            showSnackbar("changes saved", false);        
+            _toaster.Add("Changes saved", MatToastType.Success);
     }
 
     private async Task DeleteCollection()
@@ -177,7 +160,7 @@ else
 
         if (response.Ok)
         {
-            showSnackbar("collection deleted", false);
+            _toaster.Add("collection deleted", MatToastType.Success);
             _navigationManager.NavigateTo(Urls.Collections);
         }
     }
@@ -195,22 +178,5 @@ else
     public void Dispose()
     {
         _jsRuntime.InvokeAsync<string>("monacoEditorFunctions.disposeEditor", "collectionsEditorContainer");
-    }
-
-    private void showSnackbar(string message, bool showCancelButton = true, string okButtonText = "", string cancelButtonText = "", Action onSnackbarOk = null)
-    {
-        _snackbarMessage = message;
-        _snackbarIsOpen = true;
-        _snackbarOnOkClick = onSnackbarOk;
-        _snackbarShowCancelButton = showCancelButton;
-        if (!string.IsNullOrEmpty(okButtonText))
-            _snackbarOkButtonText = okButtonText;
-        if (!string.IsNullOrEmpty(cancelButtonText))
-            _snackbarOkButtonText = cancelButtonText;
-        this.StateHasChanged();
-    }
-
-    private void handleSnackbarOkClick()
-    {
     }
 }

@@ -1,11 +1,13 @@
 ﻿@page "/settings"
-@inject ILocalStorageService _localStorageService
+@inject ILocalStorageService _localStorageService;
+@inject IMatToaster _toaster;
 
 <h1>Settings</h1>
 <p><MatTextField @bind-Value="elasticSearchUrl" Label="Elasticearch URL" HelperText="defaults to http://localhost:9200" Style="width:100%;" Outlined="true"></MatTextField></p>
 <p><MatTextField @bind-Value="elasticSearchApiKey" Label="Api Key" HelperText="defaults to an empty string" Style="width:100%;" Outlined="true"></MatTextField></p>
 
 @code {
+
     public string elasticSearchUrl;
     public string elasticSearchApiKey;
 
@@ -26,5 +28,7 @@
 
         if(!string.IsNullOrEmpty(elasticSearchApiKey))
             await _localStorageService.SetItemAsync("elasticSearchApiKey", elasticSearchApiKey);
+
+        _toaster.Add("Changes saved", MatToastType.Success);
     }
 }
